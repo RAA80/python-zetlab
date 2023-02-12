@@ -3,8 +3,9 @@
 
 import os.path
 import functools
+import itertools
 from ctypes import (cdll, byref, WINFUNCTYPE, POINTER, pointer, c_long, c_char,
-                    c_char_p, c_double, c_void_p, c_ulong, c_ushort)
+                    c_char_p, c_double, c_void_p, c_ulong)
 
 
 # тип устройства (платы) АЦП-ЦАП
@@ -142,14 +143,17 @@ class IDaqZDevice(c_void_p):
 
 
 class ZET(object):
+    ''' Python wrapper for zadc library '''
+
     def __init__(self, device, dsp):
-        self.typeDevice = device
-        self.numberDSP = dsp
+        self._device = device
+        self._dsp = dsp
 
         self._zdev = IDaqZDevice()
 
     def __enter__(self):
-        self.ZOpen()
+        if self.ZOpen():
+            return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.ZClose()
@@ -159,24 +163,24 @@ class ZET(object):
     def ZOpen(self):
         ''' Подключиться к драйверу '''
 
-        return not self._zdev.ZOpen(self.typeDevice, self.numberDSP)
+        return not self._zdev.ZOpen(self._device, self._dsp)
 
     def ZClose(self):
         ''' Отключиться от драйвера '''
 
-        return not self._zdev.ZClose(self.typeDevice, self.numberDSP)
+        return not self._zdev.ZClose(self._device, self._dsp)
 
 # Сброс и инициализация
 
-    def ZInitDSP(self, fileName=""):
+    def ZInitDSP(self, filename=""):
         ''' Проинициализировать сигнальный процессор '''
 
-        return not self._zdev.ZInitDSP(self.typeDevice, self.numberDSP, fileName.encode("ascii"))
+        return not self._zdev.ZInitDSP(self._device, self._dsp, filename.encode("ascii"))
 
     def ZResetDSP(self):
         ''' Сброс и останов сигнальных процессоров (влияет на все DSP одного устройства) '''
 
-        return not self._zdev.ZResetDSP(self.typeDevice, self.numberDSP)
+        return not self._zdev.ZResetDSP(self._device, self._dsp)
 
 # Сервисные функции
 
@@ -187,7 +191,7 @@ class ZET(object):
         verDRV = (c_char*100)()
         verLIB = (c_char*100)()
 
-        if not self._zdev.ZGetVersion(self.typeDevice, self.numberDSP, verDSP, verDRV, verLIB):
+        if not self._zdev.ZGetVersion(self._device, self._dsp, verDSP, verDRV, verLIB):
             return {"verDSP": verDSP.value,
                     "verDRV": verDRV.value,
                     "verLIB": verLIB.value}
@@ -195,17 +199,17 @@ class ZET(object):
     def ZGetError(self):
         ''' Прочитать код ошибки '''
 
-        last_err = c_long()
+        error = c_long()
 
-        if not self._zdev.ZGetError(self.typeDevice, self.numberDSP, byref(last_err)):
-            return last_err.value
+        if not self._zdev.ZGetError(self._device, self._dsp, byref(error)):
+            return error.value
 
     def ZGetModify(self):
         ''' Определить кол-во изменений параметров с момента загрузки '''
 
         modify = c_long()
 
-        if not self._zdev.ZGetModify(self.typeDevice, self.numberDSP, byref(modify)):
+        if not self._zdev.ZGetModify(self._device, self._dsp, byref(modify)):
             return modify.value
 
 # Установка режима работы сигнального процессора
@@ -213,12 +217,12 @@ class ZET(object):
     def ZSetTypeADC(self):
         ''' Установить сигнальный процессор в режим АЦП '''
 
-        return not self._zdev.ZSetTypeADC(self.typeDevice, self.numberDSP)
+        return not self._zdev.ZSetTypeADC(self._device, self._dsp)
 
     def ZSetTypeDAC(self):
         ''' Установить сигнальный процессор в режим ЦАП '''
 
-        return not self._zdev.ZSetTypeDAC(self.typeDevice, self.numberDSP)
+        return not self._zdev.ZSetTypeDAC(self._device, self._dsp)
 
 # Опрос основных характеристик модулей АЦП и ЦАП
 
@@ -227,7 +231,7 @@ class ZET(object):
 
         enable = c_long()
 
-        if not self._zdev.ZGetEnableADC(self.typeDevice, self.numberDSP, byref(enable)):
+        if not self._zdev.ZGetEnableADC(self._device, self._dsp, byref(enable)):
             return enable.value
 
     def ZGetEnableDAC(self):
@@ -235,7 +239,7 @@ class ZET(object):
 
         enable = c_long()
 
-        if not self._zdev.ZGetEnableDAC(self.typeDevice, self.numberDSP, byref(enable)):
+        if not self._zdev.ZGetEnableDAC(self._device, self._dsp, byref(enable)):
             return enable.value
 
     def ZGetQuantityChannelADC(self):
@@ -243,7 +247,7 @@ class ZET(object):
 
         quantity = c_long()
 
-        if not self._zdev.ZGetQuantityChannelADC(self.typeDevice, self.numberDSP, byref(quantity)):
+        if not self._zdev.ZGetQuantityChannelADC(self._device, self._dsp, byref(quantity)):
             return quantity.value
 
     def ZGetQuantityChannelDAC(self):
@@ -251,7 +255,7 @@ class ZET(object):
 
         quantity = c_long()
 
-        if not self._zdev.ZGetQuantityChannelDAC(self.typeDevice, self.numberDSP, byref(quantity)):
+        if not self._zdev.ZGetQuantityChannelDAC(self._device, self._dsp, byref(quantity)):
             return quantity.value
 
     def ZGetDigitalResolutionADC(self):
@@ -259,7 +263,7 @@ class ZET(object):
 
         resolution = c_double()
 
-        if not self._zdev.ZGetDigitalResolutionADC(self.typeDevice, self.numberDSP, byref(resolution)):
+        if not self._zdev.ZGetDigitalResolutionADC(self._device, self._dsp, byref(resolution)):
             return resolution.value
 
     def ZGetDigitalResolutionDAC(self):
@@ -267,7 +271,7 @@ class ZET(object):
 
         resolution = c_double()
 
-        if not self._zdev.ZGetDigitalResolutionDAC(self.typeDevice, self.numberDSP, byref(resolution)):
+        if not self._zdev.ZGetDigitalResolutionDAC(self._device, self._dsp, byref(resolution)):
             return resolution.value
 
     def ZGetDigitalResolChanADC(self, channel):
@@ -276,7 +280,7 @@ class ZET(object):
         resolution = c_double()
         channel = c_long(channel)
 
-        if not self._zdev.ZGetDigitalResolChanADC(self.typeDevice, self.numberDSP, channel, byref(resolution)):
+        if not self._zdev.ZGetDigitalResolChanADC(self._device, self._dsp, channel, byref(resolution)):
             return resolution.value
 
     def ZGetDigitalResolChanDAC(self, channel):
@@ -285,7 +289,7 @@ class ZET(object):
         resolution = c_double()
         channel = c_long(channel)
 
-        if not self._zdev.ZGetDigitalResolChanDAC(self.typeDevice, self.numberDSP, channel, byref(resolution)):
+        if not self._zdev.ZGetDigitalResolChanDAC(self._device, self._dsp, channel, byref(resolution)):
             return resolution.value
 
     def ZGetBitsADC(self):
@@ -293,7 +297,7 @@ class ZET(object):
 
         nbits = c_long()
 
-        if not self._zdev.ZGetBitsADC(self.typeDevice, self.numberDSP, byref(nbits)):
+        if not self._zdev.ZGetBitsADC(self._device, self._dsp, byref(nbits)):
             return nbits.value
 
     def ZGetBitsDAC(self):
@@ -301,7 +305,7 @@ class ZET(object):
 
         nbits = c_long()
 
-        if not self._zdev.ZGetBitsDAC(self.typeDevice, self.numberDSP, byref(nbits)):
+        if not self._zdev.ZGetBitsDAC(self._device, self._dsp, byref(nbits)):
             return nbits.value
 
     def ZGetWordsADC(self):
@@ -309,7 +313,7 @@ class ZET(object):
 
         nwords = c_long()
 
-        if not self._zdev.ZGetWordsADC(self.typeDevice, self.numberDSP, byref(nwords)):
+        if not self._zdev.ZGetWordsADC(self._device, self._dsp, byref(nwords)):
             return nwords.value
 
     def ZGetWordsDAC(self):
@@ -317,7 +321,7 @@ class ZET(object):
 
         nwords = c_long()
 
-        if not self._zdev.ZGetWordsDAC(self.typeDevice, self.numberDSP, byref(nwords)):
+        if not self._zdev.ZGetWordsDAC(self._device, self._dsp, byref(nwords)):
             return nwords.value
 
 # Установка частоты дискретизации и режима синхронизации АЦП/ЦАП
@@ -325,40 +329,30 @@ class ZET(object):
     def ZGetListFreqADC(self):
         ''' Получение списка возможных частот дискретизации АЦП '''
 
-        next = c_long(0)
         freq = c_double()
         freq_list = []
 
-        i = 0
-        while True:
+        for next in itertools.count():
             try:
-                self._zdev.ZGetListFreqADC(self.typeDevice, self.numberDSP, next, byref(freq))
+                self._zdev.ZGetListFreqADC(self._device, self._dsp, c_long(next), byref(freq))
                 freq_list.append(freq.value)
-            except Exception as err:
+            except Exception:
                 break
-            else:
-                i += 1
-                next = c_long(i)
 
         return freq_list
 
     def ZGetListFreqDAC(self):
         ''' Получение списка возможных частот дискретизации ЦАП '''
 
-        next = c_long(0)
         freq = c_double()
         freq_list = []
 
-        i = 0
-        while True:
+        for next in itertools.count():
             try:
-                self._zdev.ZGetListFreqDAC(self.typeDevice, self.numberDSP, next, byref(freq))
+                self._zdev.ZGetListFreqDAC(self._device, self._dsp, c_long(next), byref(freq))
                 freq_list.append(freq.value)
-            except Exception as err:
+            except Exception:
                 break
-            else:
-                i += 1
-                next = c_long(i)
 
         return freq_list
 
@@ -368,7 +362,7 @@ class ZET(object):
         next = c_long(next)
         freq = c_double()
 
-        if not self._zdev.ZSetNextFreqADC(self.typeDevice, self.numberDSP, next, byref(freq)):
+        if not self._zdev.ZSetNextFreqADC(self._device, self._dsp, next, byref(freq)):
             return freq.value
 
     def ZSetNextFreqDAC(self, next):
@@ -377,7 +371,7 @@ class ZET(object):
         next = c_long(next)
         freq = c_double()
 
-        if not self._zdev.ZSetNextFreqDAC(self.typeDevice, self.numberDSP, next, byref(freq)):
+        if not self._zdev.ZSetNextFreqDAC(self._device, self._dsp, next, byref(freq)):
             return freq.value
 
     def ZGetFreqADC(self):
@@ -385,7 +379,7 @@ class ZET(object):
 
         freq = c_double()
 
-        if not self._zdev.ZGetFreqADC(self.typeDevice, self.numberDSP, byref(freq)):
+        if not self._zdev.ZGetFreqADC(self._device, self._dsp, byref(freq)):
             return freq.value
 
     def ZGetFreqDAC(self):
@@ -393,33 +387,33 @@ class ZET(object):
 
         freq = c_double()
 
-        if not self._zdev.ZGetFreqDAC(self.typeDevice, self.numberDSP, byref(freq)):
+        if not self._zdev.ZGetFreqDAC(self._device, self._dsp, byref(freq)):
             return freq.value
 
-    def ZSetFreqADC(self, freqIn):
+    def ZSetFreqADC(self, freq_in):
         ''' Установка частоты дискретизации АЦП '''
 
-        freqIn = c_double(freqIn)
-        freqOut = c_double()
+        freq_in = c_double(freq_in)
+        freq_out = c_double()
 
-        if not self._zdev.ZSetFreqADC(self.typeDevice, self.numberDSP, freqIn, byref(freqOut)):
-            return freqOut.value
+        if not self._zdev.ZSetFreqADC(self._device, self._dsp, freq_in, byref(freq_out)):
+            return freq_out.value
 
-    def ZSetFreqDAC(self, freqIn):
+    def ZSetFreqDAC(self, freq_in):
         ''' Установка частоты дискретизации ЦАП '''
 
-        freqIn = c_double(freqIn)
-        freqOut = c_double()
+        freq_in = c_double(freq_in)
+        freq_out = c_double()
 
-        if not self._zdev.ZSetFreqDAC(self.typeDevice, self.numberDSP, freqIn, byref(freqOut)):
-            return freqOut.value
+        if not self._zdev.ZSetFreqDAC(self._device, self._dsp, freq_in, byref(freq_out)):
+            return freq_out.value
 
     def ZGetExtFreqADC(self):
         ''' Опрос текущей опорной частоты АЦП '''
 
         freq = c_double()
 
-        if not self._zdev.ZGetExtFreqADC(self.typeDevice, self.numberDSP, byref(freq)):
+        if not self._zdev.ZGetExtFreqADC(self._device, self._dsp, byref(freq)):
             return freq.value
 
     def ZGetExtFreqDAC(self):
@@ -427,29 +421,29 @@ class ZET(object):
 
         freq = c_double()
 
-        if not self._zdev.ZGetExtFreqDAC(self.typeDevice, self.numberDSP, byref(freq)):
+        if not self._zdev.ZGetExtFreqDAC(self._device, self._dsp, byref(freq)):
             return freq.value
 
-    def ZSetExtFreqADC(self, extFreq):
+    def ZSetExtFreqADC(self, ext_freq):
         ''' Установка значения внешней опорной частоты АЦП '''
 
-        extFreq = c_double(extFreq)
+        ext_freq = c_double(ext_freq)
 
-        return not self._zdev.ZSetExtFreqADC(self.typeDevice, self.numberDSP, extFreq)
+        return not self._zdev.ZSetExtFreqADC(self._device, self._dsp, ext_freq)
 
-    def ZSetExtFreqDAC(self, extFreq):
+    def ZSetExtFreqDAC(self, ext_freq):
         ''' Установка значения внешней опорной частоты ЦАП '''
 
-        extFreq = c_double(extFreq)
+        ext_freq = c_double(ext_freq)
 
-        return not self._zdev.ZSetExtFreqDAC(self.typeDevice, self.numberDSP, extFreq)
+        return not self._zdev.ZSetExtFreqDAC(self._device, self._dsp, ext_freq)
 
     def ZGetEnableExtFreq(self):
         ''' Прочитать статус синхронизации по внешней частоте (устаревшая функция) '''
 
         enable = c_long()
 
-        if not self._zdev.ZGetEnableExtFreq(self.typeDevice, self.numberDSP, byref(enable)):
+        if not self._zdev.ZGetEnableExtFreq(self._device, self._dsp, byref(enable)):
             return enable.value
 
     def ZSetEnableExtFreq(self, enable):
@@ -457,14 +451,14 @@ class ZET(object):
 
         enable = c_long(enable)
 
-        return not self._zdev.ZSetEnableExtFreq(self.typeDevice, self.numberDSP, enable)
+        return not self._zdev.ZSetEnableExtFreq(self._device, self._dsp, enable)
 
     def ZGetEnableExtStart(self):
         ''' Прочитать статус внешнего запуска (устаревшая функция) '''
 
         enable = c_long()
 
-        if not self._zdev.ZGetEnableExtStart(self.typeDevice, self.numberDSP, byref(enable)):
+        if not self._zdev.ZGetEnableExtStart(self._device, self._dsp, byref(enable)):
             return enable.value
 
     def ZSetEnableExtStart(self, enable):
@@ -472,7 +466,7 @@ class ZET(object):
 
         enable = c_long(enable)
 
-        return not self._zdev.ZSetEnableExtStart(self.typeDevice, self.numberDSP, enable)
+        return not self._zdev.ZSetEnableExtStart(self._device, self._dsp, enable)
 
 # Управление каналами ввода (вывода) АЦП/ЦАП
 
@@ -481,7 +475,7 @@ class ZET(object):
 
         channel = c_long()
 
-        if not self._zdev.ZGetNumberInputADC(self.typeDevice, self.numberDSP, byref(channel)):
+        if not self._zdev.ZGetNumberInputADC(self._device, self._dsp, byref(channel)):
             return channel.value
 
     def ZGetNumberOutputDAC(self):
@@ -489,7 +483,7 @@ class ZET(object):
 
         channel = c_long()
 
-        if not self._zdev.ZGetNumberOutputDAC(self.typeDevice, self.numberDSP, byref(channel)):
+        if not self._zdev.ZGetNumberOutputDAC(self._device, self._dsp, byref(channel)):
             return channel.value
 
     def ZGetInputADC(self, channel):
@@ -498,7 +492,7 @@ class ZET(object):
         enable = c_long()
         channel = c_long(channel)
 
-        if not self._zdev.ZGetInputADC(self.typeDevice, self.numberDSP, channel, byref(enable)):
+        if not self._zdev.ZGetInputADC(self._device, self._dsp, channel, byref(enable)):
             return enable.value
 
     def ZGetOutputDAC(self, channel):
@@ -507,7 +501,7 @@ class ZET(object):
         enable = c_long()
         channel = c_long(channel)
 
-        if not self._zdev.ZGetOutputDAC(self.typeDevice, self.numberDSP, channel, byref(enable)):
+        if not self._zdev.ZGetOutputDAC(self._device, self._dsp, channel, byref(enable)):
             return enable.value
 
     def ZSetInputADC(self, channel, enable):
@@ -516,7 +510,7 @@ class ZET(object):
         enable = c_long(enable)
         channel = c_long(channel)
 
-        return not self._zdev.ZSetInputADC(self.typeDevice, self.numberDSP, channel, enable)
+        return not self._zdev.ZSetInputADC(self._device, self._dsp, channel, enable)
 
     def ZSetOutputDAC(self, channel, enable):
         ''' Включить/выключить заданный канал ЦАП '''
@@ -524,7 +518,7 @@ class ZET(object):
         enable = c_long(enable)
         channel = c_long(channel)
 
-        return not self._zdev.ZSetOutputDAC(self.typeDevice, self.numberDSP, channel, enable)
+        return not self._zdev.ZSetOutputDAC(self._device, self._dsp, channel, enable)
 
     def ZGetInputDiffADC(self, channel):
         ''' Опрос дифференциального режима заданного канала для ввода АЦП '''
@@ -532,7 +526,7 @@ class ZET(object):
         enable = c_long()
         channel = c_long(channel)
 
-        if not self._zdev.ZGetInputDiffADC(self.typeDevice, self.numberDSP, channel, byref(enable)):
+        if not self._zdev.ZGetInputDiffADC(self._device, self._dsp, channel, byref(enable)):
             return enable.value
 
     def ZSetInputDiffADC(self, channel, enable):
@@ -541,27 +535,22 @@ class ZET(object):
         enable = c_long(enable)
         channel = c_long(channel)
 
-        return not self._zdev.ZSetInputDiffADC(self.typeDevice, self.numberDSP, channel, enable)
+        return not self._zdev.ZSetInputDiffADC(self._device, self._dsp, channel, enable)
 
 # Управление коэффициентами усиления АЦП
 
     def ZGetListAmplifyADC(self):
         ''' Получение списка возможных коэффициентов усиления АЦП '''
 
-        next = c_long(0)
         amplify = c_double()
         amplify_list = []
 
-        i = 0
-        while True:
+        for next in itertools.count():
             try:
-                self._zdev.ZGetListAmplifyADC(self.typeDevice, self.numberDSP, next, byref(amplify))
+                self._zdev.ZGetListAmplifyADC(self._device, self._dsp, c_long(next), byref(amplify))
                 amplify_list.append(amplify.value)
-            except Exception as err:
+            except Exception:
                 break
-            else:
-                i += 1
-                next = c_long(i)
 
         return amplify_list
 
@@ -572,7 +561,7 @@ class ZET(object):
         channel = c_long(channel)
         amplify = c_double()
 
-        if not self._zdev.ZSetNextAmplifyADC(self.typeDevice, self.numberDSP, channel, next, byref(amplify)):
+        if not self._zdev.ZSetNextAmplifyADC(self._device, self._dsp, channel, next, byref(amplify)):
             return amplify.value
 
     def ZGetAmplifyADC(self, channel):
@@ -581,38 +570,33 @@ class ZET(object):
         amplify = c_double()
         channel = c_long(channel)
 
-        if not self._zdev.ZGetAmplifyADC(self.typeDevice, self.numberDSP, channel, byref(amplify)):
+        if not self._zdev.ZGetAmplifyADC(self._device, self._dsp, channel, byref(amplify)):
             return amplify.value
 
-    def ZSetAmplifyADC(self, channel, amplifyIn):
+    def ZSetAmplifyADC(self, channel, amplify_in):
         ''' Установка коэффициента усиления выбранного канала АЦП '''
 
-        amplifyIn = c_double(amplifyIn)
-        amplifyOut = c_double()
+        amplify_in = c_double(amplify_in)
+        amplify_out = c_double()
         channel = c_long(channel)
 
-        if not self._zdev.ZSetAmplifyADC(self.typeDevice, self.numberDSP, channel, amplifyIn, byref(amplifyOut)):
-            return amplifyOut.value
+        if not self._zdev.ZSetAmplifyADC(self._device, self._dsp, channel, amplify_in, byref(amplify_out)):
+            return amplify_out.value
 
 # Управление коэффициентами усиления ПУ 8/10
 
     def ZGetListPreAmplifyADC(self):
         ''' Получение списка возможных коэффициентов усиления предварительного усилителя '''
 
-        next = c_long(0)
         amplify = c_double()
         amplify_list = []
 
-        i = 0
-        while True:
+        for next in itertools.count():
             try:
-                self._zdev.ZGetListPreAmplifyADC(self.typeDevice, self.numberDSP, next, byref(amplify))
+                self._zdev.ZGetListPreAmplifyADC(self._device, self._dsp, c_long(next), byref(amplify))
                 amplify_list.append(amplify.value)
-            except Exception as err:
+            except Exception:
                 break
-            else:
-                i += 1
-                next = c_long(i)
 
         return amplify_list
 
@@ -623,18 +607,18 @@ class ZET(object):
         channel = c_long(channel)
         amplify = c_double()
 
-        if not self._zdev.ZSetNextPreAmplifyADC(self.typeDevice, self.numberDSP, channel, next, byref(amplify)):
+        if not self._zdev.ZSetNextPreAmplifyADC(self._device, self._dsp, channel, next, byref(amplify)):
             return amplify.value
 
-    def ZSetPreAmplifyADC(self, channel, amplifyIn):
+    def ZSetPreAmplifyADC(self, channel, amplify_in):
         ''' Установка коэффициента усиления предварительного усилителя выбранного канала '''
 
-        amplifyIn = c_double(amplifyIn)
-        amplifyOut = c_double()
+        amplify_in = c_double(amplify_in)
+        amplify_out = c_double()
         channel = c_long(channel)
 
-        if not self._zdev.ZSetPreAmplifyADC(self.typeDevice, self.numberDSP, channel, amplifyIn, byref(amplifyOut)):
-            return amplifyOut.value
+        if not self._zdev.ZSetPreAmplifyADC(self._device, self._dsp, channel, amplify_in, byref(amplify_out)):
+            return amplify_out.value
 
     def ZGetPreAmplifyADC(self, channel):
         ''' Опрос коэффициента усиления предварительного усилителя выбранного канала '''
@@ -642,7 +626,7 @@ class ZET(object):
         amplify = c_double()
         channel = c_long(channel)
 
-        if not self._zdev.ZGetPreAmplifyADC(self.typeDevice, self.numberDSP, channel, byref(amplify)):
+        if not self._zdev.ZGetPreAmplifyADC(self._device, self._dsp, channel, byref(amplify)):
             return amplify.value
 
 # Управление коэффициентами ослабления аттенюатора ЦАП
@@ -653,18 +637,18 @@ class ZET(object):
         reduction = c_double()
         channel = c_long(channel)
 
-        if not self._zdev.ZGetAttenDAC(self.typeDevice, self.numberDSP, channel, byref(reduction)):
+        if not self._zdev.ZGetAttenDAC(self._device, self._dsp, channel, byref(reduction)):
             return reduction.value
 
-    def ZSetAttenDAC(self, channel, reductionIn):
+    def ZSetAttenDAC(self, channel, reduction_in):
         ''' Установка коэффициента ослабления аттенюатора выбранного канала '''
 
-        reductionIn = c_double(reductionIn)
-        reductionOut = c_double()
+        reduction_in = c_double(reduction_in)
+        reduction_out = c_double()
         channel = c_long(channel)
 
-        if not self._zdev.ZSetAttenDAC(self.typeDevice, self.numberDSP, channel, reductionIn, byref(reductionOut)):
-            return reductionOut.value
+        if not self._zdev.ZSetAttenDAC(self._device, self._dsp, channel, reduction_in, byref(reduction_out)):
+            return reduction_out.value
 
 # Управление процессом перекачки данных
 
@@ -673,14 +657,14 @@ class ZET(object):
 
         enable = c_long(enable)
 
-        return not self._zdev.ZSetExtCycleDAC(self.typeDevice, self.numberDSP, enable)
+        return not self._zdev.ZSetExtCycleDAC(self._device, self._dsp, enable)
 
     def ZGetInterruptADC(self):
         ''' Опрос размера буфера для перекачки данных АЦП '''
 
         size = c_long()
 
-        if not self._zdev.ZGetInterruptADC(self.typeDevice, self.numberDSP, byref(size)):
+        if not self._zdev.ZGetInterruptADC(self._device, self._dsp, byref(size)):
             return size.value
 
     def ZGetInterruptDAC(self):
@@ -688,7 +672,7 @@ class ZET(object):
 
         size = c_long()
 
-        if not self._zdev.ZGetInterruptDAC(self.typeDevice, self.numberDSP, byref(size)):
+        if not self._zdev.ZGetInterruptDAC(self._device, self._dsp, byref(size)):
             return size.value
 
     def ZGetMaxInterruptADC(self):
@@ -696,7 +680,7 @@ class ZET(object):
 
         size = c_long()
 
-        if not self._zdev.ZGetMaxInterruptADC(self.typeDevice, self.numberDSP, byref(size)):
+        if not self._zdev.ZGetMaxInterruptADC(self._device, self._dsp, byref(size)):
             return size.value
 
     def ZGetMaxInterruptDAC(self):
@@ -704,7 +688,7 @@ class ZET(object):
 
         size = c_long()
 
-        if not self._zdev.ZGetMaxInterruptDAC(self.typeDevice, self.numberDSP, byref(size)):
+        if not self._zdev.ZGetMaxInterruptDAC(self._device, self._dsp, byref(size)):
             return size.value
 
     def ZSetInterruptADC(self, size):
@@ -712,28 +696,28 @@ class ZET(object):
 
         size = c_long(size)
 
-        return not self._zdev.ZSetInterruptADC(self.typeDevice, self.numberDSP, size)
+        return not self._zdev.ZSetInterruptADC(self._device, self._dsp, size)
 
     def ZSetInterruptDAC(self, size):
         ''' Установка размера буфера для перекачки данных ЦАП '''
 
         size = c_long(size)
 
-        return not self._zdev.ZSetInterruptDAC(self.typeDevice, self.numberDSP, size)
+        return not self._zdev.ZSetInterruptDAC(self._device, self._dsp, size)
 
     def ZSetBufferSizeADC(self, size):
         ''' Задать размер буфера АЦП в ОЗУ ПК '''
 
         size = c_long(size)
 
-        return not self._zdev.ZSetBufferSizeADC(self.typeDevice, self.numberDSP, size)
+        return not self._zdev.ZSetBufferSizeADC(self._device, self._dsp, size)
 
     def ZSetBufferSizeDAC(self, size):
         ''' Задать размер буфера ЦАП в ОЗУ ПК '''
 
         size = c_long(size)
 
-        return not self._zdev.ZSetBufferSizeDAC(self.typeDevice, self.numberDSP, size)
+        return not self._zdev.ZSetBufferSizeDAC(self._device, self._dsp, size)
 
     def ZGetBufferADC(self):
         ''' Запросить буфер в ОЗУ ПК для АЦП'''
@@ -741,7 +725,7 @@ class ZET(object):
         buff_ptr = pointer(c_long())
         size = c_long()
 
-        if not self._zdev.ZGetBufferADC(self.typeDevice, self.numberDSP, byref(buff_ptr), byref(size)):
+        if not self._zdev.ZGetBufferADC(self._device, self._dsp, byref(buff_ptr), byref(size)):
             return buff_ptr, size.value
 
     def ZGetBufferDAC(self):
@@ -750,32 +734,32 @@ class ZET(object):
         buff_ptr = pointer(c_long())
         size = c_long()
 
-        if not self._zdev.ZGetBufferDAC(self.typeDevice, self.numberDSP, byref(buff_ptr), byref(size)):
+        if not self._zdev.ZGetBufferDAC(self._device, self._dsp, byref(buff_ptr), byref(size)):
             return buff_ptr, size.value
 
     def ZRemBufferADC(self, buff_ptr):
         ''' Освободить буфер в ОЗУ ПК для АЦП '''
 
-        return not self._zdev.ZRemBufferADC(self.typeDevice, self.numberDSP, byref(buff_ptr))
+        return not self._zdev.ZRemBufferADC(self._device, self._dsp, byref(buff_ptr))
 
     def ZRemBufferDAC(self, buff_ptr):
         ''' Освободить буфер в ОЗУ ПК для ЦАП '''
 
-        return not self._zdev.ZRemBufferDAC(self.typeDevice, self.numberDSP, byref(buff_ptr))
+        return not self._zdev.ZRemBufferDAC(self._device, self._dsp, byref(buff_ptr))
 
     def ZSetCycleSampleADC(self, enable):
         ''' Установка циклического или одноразового накопления АЦП '''
 
         enable = c_long(enable)
 
-        return not self._zdev.ZSetCycleSampleADC(self.typeDevice, self.numberDSP, enable)
+        return not self._zdev.ZSetCycleSampleADC(self._device, self._dsp, enable)
 
     def ZSetCycleSampleDAC(self, enable):
         ''' Установка циклического или одноразового накопления ЦАП '''
 
         enable = c_long(enable)
 
-        return not self._zdev.ZSetCycleSampleDAC(self.typeDevice, self.numberDSP, enable)
+        return not self._zdev.ZSetCycleSampleDAC(self._device, self._dsp, enable)
 
     def ZGetLastDataADC(self, channel, size):
         ''' Пересылка последних накопленных данных АЦП '''
@@ -784,14 +768,14 @@ class ZET(object):
         channel = c_long(channel)
         size = c_long(size)
 
-        return not self._zdev.ZGetLastDataADC(self.typeDevice, self.numberDSP, channel, buff_ptr, size)
+        return not self._zdev.ZGetLastDataADC(self._device, self._dsp, channel, buff_ptr, size)
 
     def ZGetPointerADC(self):
         ''' Чтение указателя буфера в ОЗУ ПК для АЦП '''
 
         ptr = c_long()
 
-        if not self._zdev.ZGetPointerADC(self.typeDevice, self.numberDSP, byref(ptr)):
+        if not self._zdev.ZGetPointerADC(self._device, self._dsp, byref(ptr)):
             return ptr.value
 
     def ZGetPointerDAC(self):
@@ -799,7 +783,7 @@ class ZET(object):
 
         ptr = c_long()
 
-        if not self._zdev.ZGetPointerDAC(self.typeDevice, self.numberDSP, byref(ptr)):
+        if not self._zdev.ZGetPointerDAC(self._device, self._dsp, byref(ptr)):
             return ptr.value
 
     def ZGetFlag(self):
@@ -807,7 +791,7 @@ class ZET(object):
 
         flag = c_ulong()
 
-        if not self._zdev.ZGetFlag(self.typeDevice, self.numberDSP, byref(flag)):
+        if not self._zdev.ZGetFlag(self._device, self._dsp, byref(flag)):
             return flag.value
 
     def ZGetStartADC(self):
@@ -815,7 +799,7 @@ class ZET(object):
 
         status = c_long()
 
-        if not self._zdev.ZGetStartADC(self.typeDevice, self.numberDSP, byref(status)):
+        if not self._zdev.ZGetStartADC(self._device, self._dsp, byref(status)):
             return status.value
 
     def ZGetStartDAC(self):
@@ -823,28 +807,28 @@ class ZET(object):
 
         status = c_long()
 
-        if not self._zdev.ZGetStartDAC(self.typeDevice, self.numberDSP, byref(status)):
+        if not self._zdev.ZGetStartDAC(self._device, self._dsp, byref(status)):
             return status.value
 
     def ZStartADC(self):
         ''' Старт накопления данных АЦП '''
 
-        return not self._zdev.ZStartADC(self.typeDevice, self.numberDSP)
+        return not self._zdev.ZStartADC(self._device, self._dsp)
 
     def ZStartDAC(self):
         ''' Старт накопления данных ЦАП '''
 
-        return not self._zdev.ZStartDAC(self.typeDevice, self.numberDSP)
+        return not self._zdev.ZStartDAC(self._device, self._dsp)
 
     def ZStopADC(self):
         ''' Останов накопления данных АЦП '''
 
-        return not self._zdev.ZStopADC(self.typeDevice, self.numberDSP)
+        return not self._zdev.ZStopADC(self._device, self._dsp)
 
     def ZStopDAC(self):
         ''' Останов накопления данных ЦАП '''
 
-        return not self._zdev.ZStopDAC(self.typeDevice, self.numberDSP)
+        return not self._zdev.ZStopDAC(self._device, self._dsp)
 
 # Управление модулем HCP
 
@@ -853,7 +837,7 @@ class ZET(object):
 
         present = c_long()
 
-        if not self._zdev.ZFindHCPADC(self.typeDevice, self.numberDSP, byref(present)):
+        if not self._zdev.ZFindHCPADC(self._device, self._dsp, byref(present)):
             return present.value
 
     def ZGetHCPADC(self, channel):
@@ -862,7 +846,7 @@ class ZET(object):
         enable = c_long()
         channel = c_long(channel)
 
-        if not self._zdev.ZGetHCPADC(self.typeDevice, self.numberDSP, channel, byref(enable)):
+        if not self._zdev.ZGetHCPADC(self._device, self._dsp, channel, byref(enable)):
             return enable.value
 
     def ZSetHCPADC(self, channel, enable):
@@ -871,47 +855,47 @@ class ZET(object):
         enable = c_long(enable)
         channel = c_long(channel)
 
-        return not self._zdev.ZSetHCPADC(self.typeDevice, self.numberDSP, channel, enable)
+        return not self._zdev.ZSetHCPADC(self._device, self._dsp, channel, enable)
 
 # Управление цифровым портом
 
     def ZGetDigOutEnable(self):
         ''' Опрос маски выходов цифрового порта '''
 
-        enableMask = c_ulong()
+        enable_mask = c_ulong()
 
-        if not self._zdev.ZGetDigOutEnable(self.typeDevice, self.numberDSP, byref(enableMask)):
-            return enableMask.value
+        if not self._zdev.ZGetDigOutEnable(self._device, self._dsp, byref(enable_mask)):
+            return enable_mask.value
 
-    def ZSetDigOutEnable(self, enableMask):
+    def ZSetDigOutEnable(self, enable_mask):
         ''' Установить маску выходов цифрового порта '''
 
-        enableMask = c_ulong(enableMask)
+        enable_mask = c_ulong(enable_mask)
 
-        return not self._zdev.ZSetDigOutEnable(self.typeDevice, self.numberDSP, enableMask)
+        return not self._zdev.ZSetDigOutEnable(self._device, self._dsp, enable_mask)
 
     def ZGetDigInput(self):
         ''' Прочитать данные с входов цифрового порта '''
 
-        digitalInput = c_ulong()
+        digital_input = c_ulong()
 
-        if not self._zdev.ZGetDigInput(self.typeDevice, self.numberDSP, byref(digitalInput)):
-            return digitalInput.value
+        if not self._zdev.ZGetDigInput(self._device, self._dsp, byref(digital_input)):
+            return digital_input.value
 
     def ZGetDigOutput(self):
         ''' Прочитать данные, выдаваемые на выходы цифрового порта '''
 
-        digitalOutput = c_ulong()
+        digital_output = c_ulong()
 
-        if not self._zdev.ZGetDigOutput(self.typeDevice, self.numberDSP, byref(digitalOutput)):
-            return digitalOutput.value
+        if not self._zdev.ZGetDigOutput(self._device, self._dsp, byref(digital_output)):
+            return digital_output.value
 
-    def ZSetDigOutput(self, digitalOutput):
+    def ZSetDigOutput(self, digital_output):
         ''' Записать данные в цифровой порт '''
 
-        digitalOutput = c_ulong(digitalOutput)
+        digital_output = c_ulong(digital_output)
 
-        return not self._zdev.ZSetDigOutput(self.typeDevice, self.numberDSP, digitalOutput)
+        return not self._zdev.ZSetDigOutput(self._device, self._dsp, digital_output)
 
 
 __all__ = [ "ZET" ]

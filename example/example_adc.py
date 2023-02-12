@@ -7,25 +7,24 @@ from zet.zet import ZET, ZET230
 
 
 if __name__ == "__main__":
-    ldev = ZET(device=ZET230, dsp=0)
-    with ldev:      # либо ldev.ZOpen() в начале и ldev.ZClose() в конце
-        print ("ZSetInputADC = {}".format(ldev.ZSetInputADC(channel=0, enable=True)))
-        resolution = ldev.ZGetDigitalResolChanADC(channel=0)
-        print ("ZGetDigitalResolChanADC = {}".format(resolution))
-        amplify = ldev.ZGetAmplifyADC(channel=0)
-        print ("ZGetAmplifyADC = {}".format(amplify))
-        channels = ldev.ZGetNumberInputADC()
-        print ("ZGetNumberInputADC = {}".format(channels))
-        words = ldev.ZGetWordsADC()
-        print ("ZGetWordsADC = {}".format(words))
-        buff, size = ldev.ZGetBufferADC()
-        print ("ZGetBufferADC = {}, {}".format(buff, size))
-        print ("ZStartADC = {}".format(ldev.ZStartADC()))
+    with ZET(device=ZET230, dsp=0) as zdev:     # либо zdev.ZOpen() в начале и zdev.ZClose() в конце
+        print("ZSetInputADC = {}".format(zdev.ZSetInputADC(channel=0, enable=True)))
+        resolution = zdev.ZGetDigitalResolChanADC(channel=0)
+        print("ZGetDigitalResolChanADC = {}".format(resolution))
+        amplify = zdev.ZGetAmplifyADC(channel=0)
+        print("ZGetAmplifyADC = {}".format(amplify))
+        channels = zdev.ZGetNumberInputADC()
+        print("ZGetNumberInputADC = {}".format(channels))
+        words = zdev.ZGetWordsADC()
+        print("ZGetWordsADC = {}".format(words))
+        buff, size = zdev.ZGetBufferADC()
+        print("ZGetBufferADC = {}, {}".format(buff, size))
+        print("ZStartADC = {}".format(zdev.ZStartADC()))
 
         pointer_old = 0
         while True:
             try:
-                pointer = ldev.ZGetPointerADC()
+                pointer = zdev.ZGetPointerADC()
 
                 if pointer == pointer_old:
                     continue
@@ -38,11 +37,11 @@ if __name__ == "__main__":
 
                 volt0 = resolution * buff[pointer // words] / amplify
 
-                print ("pointer = {:7d}, volts = {:.05f}".format(pointer, volt0), end='\r')
+                print("pointer = {:7d}, volts = {:.05f}".format(pointer, volt0), end='\r')
 
                 sleep(0.02)
             except KeyboardInterrupt:
                 break
-        print ()
-        print ("ZStopADC = {}".format(ldev.ZStopADC()))
-        print ("ZRemBufferADC = {}".format(ldev.ZRemBufferADC(buff)))
+        print()
+        print("ZStopADC = {}".format(zdev.ZStopADC()))
+        print("ZRemBufferADC = {}".format(zdev.ZRemBufferADC(buff)))
