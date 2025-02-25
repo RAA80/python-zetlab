@@ -74,14 +74,26 @@ class IDaqZDevice(c_void_p):
         "ZGetQuantityChannelDigPort": WINFUNCTYPE(c_long, c_long, c_long, POINTER(c_long)),
         "ZGetDigOutEnable": WINFUNCTYPE(c_long, c_long, c_long, POINTER(c_ulong)),
         "ZSetDigOutEnable": WINFUNCTYPE(c_long, c_long, c_long, c_ulong),
+        "ZSetBitDigOutEnable": WINFUNCTYPE(c_long, c_long, c_long, c_long),
+        "ZSetBitMaskDigOutEnable": WINFUNCTYPE(c_long, c_long, c_long, c_ulong),
+        "ZClrBitDigOutEnable": WINFUNCTYPE(c_long, c_long, c_long, c_long),
+        "ZClrBitMaskDigOutEnable": WINFUNCTYPE(c_long, c_long, c_long, c_ulong),
         "ZGetDigInput": WINFUNCTYPE(c_long, c_long, c_long, POINTER(c_ulong)),
         "ZGetDigOutput": WINFUNCTYPE(c_long, c_long, c_long, POINTER(c_ulong)),
         "ZSetDigOutput": WINFUNCTYPE(c_long, c_long, c_long, c_ulong),
+        "ZSetBitDigOutput": WINFUNCTYPE(c_long, c_long, c_long, c_long),
+        "ZSetBitMaskDigOutput": WINFUNCTYPE(c_long, c_long, c_long, c_ulong),
+        "ZClrBitDigOutput": WINFUNCTYPE(c_long, c_long, c_long, c_long),
+        "ZClrBitMaskDigOutput": WINFUNCTYPE(c_long, c_long, c_long, c_ulong),
         "ZGetDigitalMode": WINFUNCTYPE(c_long, c_long, c_long, POINTER(c_long)),
         "ZSetDigitalMode": WINFUNCTYPE(c_long, c_long, c_long, c_long),
         "ZGetMasterSynchr": WINFUNCTYPE(c_long, c_long, c_long, POINTER(c_long)),
         "ZSetMasterSynchr": WINFUNCTYPE(c_long, c_long, c_long, c_long),
         "ZFindPWM": WINFUNCTYPE(c_long, c_long, c_long, POINTER(c_long)),
+        "ZStartPWM": WINFUNCTYPE(c_long, c_long, c_long, c_long, c_long, c_long),
+        "ZStopPWM": WINFUNCTYPE(c_long, c_long, c_long, c_long, c_long, c_long),
+        "ZSetFreqPWM": WINFUNCTYPE(c_long, c_long, c_long, c_long, c_long),
+        "ZSetOnDutyPWM": WINFUNCTYPE(c_long, c_long, c_long, c_long, c_long, c_long, c_long, c_long),
         "ZGetEnableADC": WINFUNCTYPE(c_long, c_long, c_long, POINTER(c_long)),
         "ZGetEnableDAC": WINFUNCTYPE(c_long, c_long, c_long, POINTER(c_long)),
         "ZSetTypeADC": WINFUNCTYPE(c_long, c_long, c_long),
@@ -179,18 +191,6 @@ class IDaqZDevice(c_void_p):
         "ZSetSizeBufferDSPDAC": WINFUNCTYPE(c_long, c_long, c_long, c_long),
 
         "ZTestCode": WINFUNCTYPE(c_long, c_long, c_long, POINTER(c_long), POINTER(c_long), POINTER(c_long)),
-        "ZSetBitDigOutEnable": WINFUNCTYPE(c_long, c_long, c_long, c_long),
-        "ZSetBitMaskDigOutEnable": WINFUNCTYPE(c_long, c_long, c_long, c_ulong),
-        "ZClrBitDigOutEnable": WINFUNCTYPE(c_long, c_long, c_long, c_long),
-        "ZClrBitMaskDigOutEnable": WINFUNCTYPE(c_long, c_long, c_long, c_ulong),
-        "ZSetBitDigOutput": WINFUNCTYPE(c_long, c_long, c_long, c_long),
-        "ZSetBitMaskDigOutput": WINFUNCTYPE(c_long, c_long, c_long, c_ulong),
-        "ZClrBitDigOutput": WINFUNCTYPE(c_long, c_long, c_long, c_long),
-        "ZClrBitMaskDigOutput": WINFUNCTYPE(c_long, c_long, c_long, c_ulong),
-        "ZStartPWM": WINFUNCTYPE(c_long, c_long, c_long, c_long, c_long, c_long),
-        "ZStopPWM": WINFUNCTYPE(c_long, c_long, c_long, c_long, c_long, c_long),
-        "ZSetFreqPWM": WINFUNCTYPE(c_long, c_long, c_long, c_long, c_long),
-        "ZSetOnDutyPWM": WINFUNCTYPE(c_long, c_long, c_long, c_long, c_long, c_long, c_long, c_long),
         "ZRegulatorPWM": WINFUNCTYPE(c_long, c_long, c_long, c_void_p, POINTER(c_long)),
     }
 
@@ -1142,6 +1142,69 @@ class ZET:
         """Установить размер буфера ЦАП в DSP."""
 
         return self._zdev.ZSetSizeBufferDSPDAC(c_long(size))
+
+    def ZSetBitDigOutEnable(self, bits: int) -> bool:
+        """Установить линию цифрового порта на выход."""
+
+        return self._zdev.ZSetBitDigOutEnable(c_long(bits))
+
+    def ZSetBitMaskDigOutEnable(self, mask: int) -> bool:
+        """Установить маску линий цифрового порта выход."""
+
+        return self._zdev.ZSetBitMaskDigOutEnable(c_ulong(mask))
+
+    def ZClrBitDigOutEnable(self, bits: int) -> bool:
+        """Установить линию цифрового порта на вход."""
+
+        return self._zdev.ZClrBitDigOutEnable(c_long(bits))
+
+    def ZClrBitMaskDigOutEnable(self, mask: int) -> bool:
+        """Установить маску линий цифрового порта вход."""
+
+        return self._zdev.ZClrBitMaskDigOutEnable(c_ulong(mask))
+
+    def ZSetBitDigOutput(self, bits: int) -> bool:
+        """Установить вывод цифрового порта в '1'."""
+
+        return self._zdev.ZSetBitDigOutput(c_long(bits))
+
+    def ZSetBitMaskDigOutput(self, mask: int) -> bool:
+        """Установить маску выводов цифрового порта в '1'."""
+
+        return self._zdev.ZSetBitMaskDigOutput(c_ulong(mask))
+
+    def ZClrBitDigOutput(self, bits: int) -> bool:
+        """Установить вывод цифрового порта в '0'."""
+
+        return self._zdev.ZClrBitDigOutput(c_long(bits))
+
+    def ZClrBitMaskDigOutput(self, mask: int) -> bool:
+        """Установить маску выводов цифрового порта в '0'."""
+
+        return self._zdev.ZClrBitMaskDigOutput(c_ulong(mask))
+
+    def ZStartPWM(self, start0: int, start1: int, start2: int) -> bool:
+        """Запуск каналов ШИМ."""
+
+        return self._zdev.ZStartPWM(c_long(start0), c_long(start1), c_long(start2))
+
+    def ZStopPWM(self, stop0: int, stop1: int, stop2: int) -> bool:
+        """Останов каналов ШИМ."""
+
+        return self._zdev.ZStopPWM(c_long(stop0), c_long(stop1), c_long(stop2))
+
+    def ZSetFreqPWM(self, rate: int, period: int) -> bool:
+        """Задать частоту ШИМ через коэф. деления опорной частоты и период."""
+
+        return self._zdev.ZSetFreqPWM(c_long(rate), c_long(period))
+
+    def ZSetOnDutyPWM(self, duty_pwm0: int, duty_pwm1: int, duty_pwm2: int,
+                            shift_pwm1: int, shift_pwm2: int) -> bool:
+        """Задать скважность и сдвиг каналов ШИМ."""
+
+        return self._zdev.ZSetOnDutyPWM(c_long(duty_pwm0), c_long(duty_pwm1),
+                                        c_long(duty_pwm2), c_long(shift_pwm1),
+                                        c_long(shift_pwm2))
 
 
 __all__ = ["ZET"]

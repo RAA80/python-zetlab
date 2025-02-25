@@ -31,10 +31,8 @@ if __name__ == "__main__":
                     continue
                 pointer_old = pointer
 
-                if pointer - words * channels < 0:
-                    pointer = pointer + size - words * channels
-                else:
-                    pointer -= words * channels
+                condition = pointer - words * channels
+                pointer = size + condition if condition < 0 else condition
 
                 volt0 = resolution * buff[pointer // words] / amplify
 
