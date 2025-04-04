@@ -45,11 +45,13 @@ class Z_DEVICE(IntEnum):
     ZET017_U2 = 15      # АЦП устройства ZET017-U2, ZET019-U2
     ZET220 = 16         # АЦП устройства ZET220
     ZET230 = 17         # АЦП устройства ZET230
-    ZET240 = 18         # АЦП устройства ZET240
-    ZET048 = 19         # АЦП устройства ZET240, ZET048
+    ZET048 = 18         # АЦП устройства ZET048
+    ZET240 = 19         # АЦП устройства ZET240
 
 
 class IDaqZDevice(c_void_p):
+    """Основной интерфейс для работы с устройствами."""
+
     def __init__(self, device: int, dsp: int) -> None:
         self.device = device
         self.dsp = dsp
@@ -71,6 +73,7 @@ class IDaqZDevice(c_void_p):
         "ZSetEnableExtFreq": WINFUNCTYPE(c_long, c_long, c_long, c_long),
         "ZGetEnableExtStart": WINFUNCTYPE(c_long, c_long, c_long, POINTER(c_long)),
         "ZSetEnableExtStart": WINFUNCTYPE(c_long, c_long, c_long, c_long),
+        "ZTestCode": WINFUNCTYPE(c_long, c_long, c_long, POINTER(c_long), POINTER(c_long), POINTER(c_long)),
         "ZGetQuantityChannelDigPort": WINFUNCTYPE(c_long, c_long, c_long, POINTER(c_long)),
         "ZGetDigOutEnable": WINFUNCTYPE(c_long, c_long, c_long, POINTER(c_ulong)),
         "ZSetDigOutEnable": WINFUNCTYPE(c_long, c_long, c_long, c_ulong),
@@ -190,18 +193,17 @@ class IDaqZDevice(c_void_p):
         "ZGetSizeBufferDSPDAC": WINFUNCTYPE(c_long, c_long, c_long, POINTER(c_long)),
         "ZSetSizeBufferDSPDAC": WINFUNCTYPE(c_long, c_long, c_long, c_long),
 
-        "ZTestCode": WINFUNCTYPE(c_long, c_long, c_long, POINTER(c_long), POINTER(c_long), POINTER(c_long)),
         "ZRegulatorPWM": WINFUNCTYPE(c_long, c_long, c_long, c_void_p, POINTER(c_long)),
     }
 
     def __call__(self, prototype: _PyCFuncPtrType, *arguments: tuple[_CData, ...]) -> bool:
-        if ret := prototype((self.name, _lib))(*(self.device, self.dsp, *arguments)):
+        if ret := prototype((self.name, _lib))(self.device, self.dsp, *arguments):
             msg = f"{self.name} error {ret:04X}"
             raise ZetError(msg)
 
         return True
 
-    def __getattr__(self, name: str) -> Callable[..., bool]:
+    def __getattr__(self, name: str) -> Callable[..., bool]:    # type: ignore
         self.name = name
         return partial(self.__call__, self._functions_[name])
 
@@ -1205,6 +1207,12 @@ class ZET:
         return self._zdev.ZSetOnDutyPWM(c_long(duty_pwm0), c_long(duty_pwm1),
                                         c_long(duty_pwm2), c_long(shift_pwm1),
                                         c_long(shift_pwm2))
+
+    def ZTestCode(self, code0: int, code1: int, code2: int) -> bool:
+        """Запустить тест шлейфа для плат PnP."""
+
+        return self._zdev.ZTestCode(byref(c_long(code0)), byref(c_long(code1)),
+                                    byref(c_long(code2)))
 
 
 __all__ = ["ZET"]
