@@ -5,7 +5,7 @@ from setuptools import setup
 setup(name="python-zetlab",
       version="0.0.7",
       description="ZetLab ADC/DAC controller module",
-      url='https://github.com/RAA80/python-zetlab',
+      url="https://github.com/RAA80/python-zetlab",
       author="Alexey Ryadno",
       author_email="aryadno@mail.ru",
       license="MIT",
